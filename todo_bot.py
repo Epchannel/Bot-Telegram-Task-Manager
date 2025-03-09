@@ -20,23 +20,63 @@ user_task_info = {}
 # bot start and button output
 @bot.message_handler(commands=['start'])
 def start(message):
-    keyboard = types.ReplyKeyboardMarkup(True)
-    button1 = types.KeyboardButton('✅ Thêm việc')
-    button2 = types.KeyboardButton('Xem danh sách')
-    button3 = types.KeyboardButton('Thống kê')
-    button4 = types.KeyboardButton('Trợ giúp')
-    keyboard.add(button1)
-    keyboard.add(button2)
-    keyboard.add(button3)
-    keyboard.add(button4)
-    bot.send_message(message.chat.id, 'Xin chào, ' + message.from_user.first_name + '!', reply_markup=keyboard)
-
+    keyboard = types.ReplyKeyboardMarkup(row_width=2, resize_keyboard=True)
+    button1 = types.KeyboardButton('📝 Thêm việc')
+    button2 = types.KeyboardButton('📋 Xem danh sách')
+    button3 = types.KeyboardButton('📊 Thống kê')
+    button4 = types.KeyboardButton('ℹ️ Trợ giúp')
+    keyboard.add(button1, button2)
+    keyboard.add(button3, button4)
+    
+    welcome_text = (
+        f"👋 Xin chào, {message.from_user.first_name}!\n\n"
+        f"Tôi là trợ lý quản lý công việc của bạn. "
+        f"Tôi có thể giúp bạn:\n\n"
+        f"📝 Thêm công việc mới\n"
+        f"🔄 Tạo công việc lặp lại\n"
+        f"⏰ Nhắc nhở trước giờ bắt đầu/kết thúc\n"
+        f"✅ Đánh dấu hoàn thành\n"
+        f"📊 Thống kê tiến độ\n\n"
+        f"Hãy chọn chức năng bên dưới để bắt đầu!"
+    )
+    bot.send_message(message.chat.id, welcome_text, reply_markup=keyboard)
 
 @bot.message_handler(commands=['help'])
-def hepling(message):
-    bot.send_message(message.chat.id, '''
-⏰ Thêm nhắc nhở để bạn không quên những việc quan trọng
-''')
+def helping(message):
+    help_text = (
+        "🤖 HƯỚNG DẪN SỬ DỤNG\n\n"
+        "1️⃣ Thêm việc mới:\n"
+        "• Nhấn '📝 Thêm việc'\n"
+        "• Chọn ngày, giờ bắt đầu và kết thúc\n"
+        "• Chọn chế độ lặp lại (nếu cần)\n"
+        "• Nhập nội dung công việc\n\n"
+        
+        "2️⃣ Xem & Quản lý công việc:\n"
+        "• Nhấn '📋 Xem danh sách'\n"
+        "• ✅ Đánh dấu hoàn thành\n"
+        "• ✏️ Sửa công việc\n"
+        "• ❌ Xóa công việc\n\n"
+        
+        "3️⃣ Thống kê:\n"
+        "• Nhấn '📊 Thống kê'\n"
+        "• Xem tỷ lệ hoàn thành\n"
+        "• Theo dõi tiến độ\n\n"
+        
+        "⏰ Tính năng nhắc nhở:\n"
+        "• 15 phút trước giờ bắt đầu\n"
+        "• 10 phút trước giờ kết thúc\n\n"
+        
+        "🔄 Công việc lặp lại:\n"
+        "• Hàng ngày\n"
+        "• Hàng tuần\n"
+        "• Hàng tháng\n\n"
+        
+        "📌 Chú ý:\n"
+        "• Biểu tượng ⟳ = công việc lặp lại\n"
+        "• ✅ = đã hoàn thành\n"
+        "• ⏳ = chưa hoàn thành"
+    )
+    bot.send_message(message.chat.id, help_text)
 
 # task deletion function
 def delete_task(chat_id, c_date, task):
@@ -51,7 +91,7 @@ def delete_task(chat_id, c_date, task):
 # Hàm hiển thị thống kê - định nghĩa trước khi được gọi
 def show_statistics(chat_id):
     if not todos.get(chat_id):
-        bot.send_message(chat_id, 'Không có dữ liệu công việc để thống kê')
+        bot.send_message(chat_id, '📊 Chưa có dữ liệu công việc để thống kê')
         return
     
     # Thống kê tổng quát
@@ -92,85 +132,65 @@ def show_statistics(chat_id):
     completion_rate = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
     today_completion_rate = (today_completed / today_tasks * 100) if today_tasks > 0 else 0
     
-    # Tạo thông báo thống kê
+    # Cập nhật giao diện thống kê
     stats_text = (
-        f"📊 THỐNG KÊ CÔNG VIỆC 📊\n\n"
-        f"📝 Tổng số công việc: {total_tasks}\n"
-        f"✅ Đã hoàn thành: {completed_tasks} ({completion_rate:.1f}%)\n"
-        f"⏳ Chưa hoàn thành: {total_tasks - completed_tasks}\n\n"
+        f"📊 THỐNG KÊ CÔNG VIỆC\n"
+        f"{'═'*30}\n\n"
         
-        f"📅 CÔNG VIỆC HÔM NAY ({today_date}):\n"
-        f"📝 Tổng số: {today_tasks}\n"
-        f"✅ Đã hoàn thành: {today_completed} ({today_completion_rate:.1f}%)\n"
-        f"⏳ Chưa hoàn thành: {today_tasks - today_completed}\n\n"
+        f"📝 TỔNG QUAN\n"
+        f"• Tổng số công việc: {total_tasks}\n"
+        f"• Đã hoàn thành: {completed_tasks} ({completion_rate:.1f}%)\n"
+        f"• Chưa hoàn thành: {total_tasks - completed_tasks}\n"
+        f"{'─'*30}\n\n"
         
-        f"⏰ CÔNG VIỆC SẮP TỚI: {upcoming_tasks}\n"
-        f"⚠️ CÔNG VIỆC QUÁ HẠN: {overdue_tasks}\n"
+        f"📅 HÔM NAY ({today_date})\n"
+        f"• Tổng số: {today_tasks}\n"
+        f"• Đã hoàn thành: {today_completed} ({today_completion_rate:.1f}%)\n"
+        f"• Chưa hoàn thành: {today_tasks - today_completed}\n"
+        f"{'─'*30}\n\n"
+        
+        f"⏰ TÌNH TRẠNG\n"
+        f"• Công việc sắp tới: {upcoming_tasks}\n"
+        f"• Công việc quá hạn: {overdue_tasks}\n"
+        f"{'─'*30}\n\n"
+        
+        f"📈 THỐNG KÊ THEO NGÀY\n"
     )
     
     # Thêm thống kê theo ngày
-    stats_text += "\n📅 THỐNG KÊ THEO NGÀY:\n"
     for date, tasks in sorted(todos[chat_id].items()):
         completed_count = sum(1 for task in tasks if task.get('completed', False))
-        stats_text += f"- {date}: {completed_count}/{len(tasks)} hoàn thành\n"
+        completion_percent = (completed_count / len(tasks) * 100) if tasks else 0
+        progress_bar = generate_progress_bar(completion_percent)
+        stats_text += f"• {date}: {progress_bar} {completed_count}/{len(tasks)}\n"
     
-    # Gửi thông báo thống kê
     bot.send_message(chat_id, stats_text)
+
+# Hàm tạo thanh tiến độ
+def generate_progress_bar(percent):
+    filled = int(percent / 10)
+    empty = 10 - filled
+    return '█' * filled + '░' * empty
 
 @bot.message_handler(content_types=['text'])
 def call(message):
-    if message.text == '✅ Thêm việc':
+    if message.text == '📝 Thêm việc':
         bot.send_message(message.chat.id, 'Bạn muốn thêm việc vào ngày nào?', reply_markup=calendar.create_calendar(
             name=calendar_1.prefix,
             year=now.year,
             month=now.month)
                          )
-    elif message.text == 'Xem danh sách':
+    elif message.text == '📋 Xem danh sách':
         if not todos.get(message.chat.id):
             bot.send_message(message.chat.id, 'Không có việc cần làm')
         else:
             for chat_id, dates in todos.items():
                 if chat_id == message.chat.id:
                     for date, tasks in dates.items():
-                        # Tạo tin nhắn mới cho mỗi ngày
-                        tasks_text = ''
-                        for task in tasks:
-                            status = "✅ " if task.get('completed', False) else "⏳ "
-                            tasks_text += f'{status}{task["task"]} (Từ {task["start_time"]} đến {task["end_time"]})\n'
-                        
-                        text = f'Công việc ngày {date}:\n{tasks_text}'
-                        keyboard = types.InlineKeyboardMarkup(row_width=2)
-                        
-                        for task in tasks:
-                            # Nút đánh dấu hoàn thành/chưa hoàn thành
-                            if task.get('completed', False):
-                                complete_button = types.InlineKeyboardButton(
-                                    text=f'❌ Chưa hoàn thành: {task["task"]}',
-                                    callback_data=f'mark_incomplete:{date}:{task["task"]}'
-                                )
-                            else:
-                                complete_button = types.InlineKeyboardButton(
-                                    text=f'✅ Đánh dấu hoàn thành: {task["task"]}',
-                                    callback_data=f'mark_complete:{date}:{task["task"]}'
-                                )
-                            
-                            # Nút sửa và xóa
-                            edit_button = types.InlineKeyboardButton(
-                                text=f'✏️ Sửa: {task["task"]}',
-                                callback_data=f'edit:{date}:{task["task"]}'
-                            )
-                            delete_button = types.InlineKeyboardButton(
-                                text=f'❌ Xóa: {task["task"]}',
-                                callback_data=f'delete:{date}:{task["task"]}'
-                            )
-                            
-                            keyboard.add(complete_button)
-                            keyboard.add(edit_button, delete_button)
-                        
-                        bot.send_message(message.chat.id, text, reply_markup=keyboard)
-    elif message.text == 'Thống kê':
+                        update_task_list_message(message, chat_id, date)
+    elif message.text == '📊 Thống kê':
         show_statistics(message.chat.id)
-    elif message.text == 'Trợ giúp':
+    elif message.text == 'ℹ️ Trợ giúp':
         bot.send_message(message.chat.id, '''
 ⏰ Thêm nhắc nhở để bạn không quên những việc quan trọng
 ''')
@@ -511,7 +531,75 @@ def start_notification_thread():
     notification_thread = threading.Thread(target=check_and_notify, daemon=True)
     notification_thread.start()
 
-
+# Cập nhật giao diện hiển thị danh sách công việc
+def update_task_list_message(message, chat_id, date):
+    try:
+        if chat_id in todos and date in todos[chat_id]:
+            tasks = todos[chat_id][date]
+            
+            # Tạo header cho danh sách
+            header = f"📅 CÔNG VIỆC NGÀY {date}\n{'─'*30}\n"
+            
+            # Tạo danh sách công việc
+            tasks_text = ''
+            for task in tasks:
+                status = "✅" if task.get('completed', False) else "⏳"
+                repeat = "⟳" if task.get('repeat', REPEAT_NONE) != REPEAT_NONE else ""
+                repeat_type = f" [{task['repeat']}]" if task.get('repeat', REPEAT_NONE) != REPEAT_NONE else ""
+                
+                tasks_text += (
+                    f"{status} {repeat} {task['task']}\n"
+                    f"   ⏰ {task['start_time']} - {task['end_time']}{repeat_type}\n"
+                    f"{'─'*30}\n"
+                )
+            
+            text = header + tasks_text
+            
+            # Tạo bàn phím inline
+            keyboard = types.InlineKeyboardMarkup(row_width=2)
+            for task in tasks:
+                task_name = task['task']
+                # Rút gọn tên task nếu quá dài
+                short_name = task_name[:20] + "..." if len(task_name) > 20 else task_name
+                
+                # Nút đánh dấu hoàn thành/chưa hoàn thành
+                if task.get('completed', False):
+                    complete_button = types.InlineKeyboardButton(
+                        text=f'❌ Bỏ hoàn thành: {short_name}',
+                        callback_data=f'mark_incomplete:{date}:{task_name}'
+                    )
+                else:
+                    complete_button = types.InlineKeyboardButton(
+                        text=f'✅ Đánh dấu hoàn thành: {short_name}',
+                        callback_data=f'mark_complete:{date}:{task_name}'
+                    )
+                
+                # Nút sửa và xóa
+                edit_button = types.InlineKeyboardButton(
+                    text=f'✏️ Sửa',
+                    callback_data=f'edit:{date}:{task_name}'
+                )
+                delete_button = types.InlineKeyboardButton(
+                    text=f'🗑️ Xóa',
+                    callback_data=f'delete:{date}:{task_name}'
+                )
+                
+                # Thêm các nút vào keyboard
+                keyboard.add(complete_button)
+                keyboard.add(edit_button, delete_button)
+            
+            # Cập nhật tin nhắn
+            bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message.message_id,
+                text=text,
+                reply_markup=keyboard,
+                parse_mode='HTML'
+            )
+            
+    except Exception as e:
+        print(f"Lỗi khi cập nhật tin nhắn: {e}")
+        print(traceback.format_exc())
 
 # Sửa lại handler đánh dấu hoàn thành
 @bot.callback_query_handler(func=lambda call: call.data.startswith('mark_complete:') or call.data.startswith('mark_incomplete:'))
@@ -582,7 +670,6 @@ def handle_task_completion(call):
     except Exception as e:
         print(f"Lỗi khi xử lý đánh dấu hoàn thành: {str(e)}")
         bot.answer_callback_query(call.id, text="Đã xảy ra lỗi khi cập nhật trạng thái")
-
 
 # Thêm vào cuối file, trước bot.polling()
 if __name__ == '__main__':
