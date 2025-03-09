@@ -4,6 +4,7 @@ from telebot_calendar import Calendar, CallbackData, ENGLISH_LANGUAGE
 import datetime
 import threading
 import time
+import traceback  # Thêm import này ở đầu file
 
 token = '7594590300:AAHc7ytdo9ONdb3rhYyYqkRkDHHlN1KwH3Q'  # Replace with your real bot token from @BotFather
 bot = telebot.TeleBot(token)
@@ -131,6 +132,7 @@ def call(message):
             for chat_id, dates in todos.items():
                 if chat_id == message.chat.id:
                     for date, tasks in dates.items():
+                        # Tạo tin nhắn mới cho mỗi ngày
                         tasks_text = ''
                         for task in tasks:
                             status = "✅ " if task.get('completed', False) else "⏳ "
@@ -509,57 +511,80 @@ def start_notification_thread():
     notification_thread = threading.Thread(target=check_and_notify, daemon=True)
     notification_thread.start()
 
+
+
+# Sửa lại handler đánh dấu hoàn thành
+@bot.callback_query_handler(func=lambda call: call.data.startswith('mark_complete:') or call.data.startswith('mark_incomplete:'))
+def handle_task_completion(call):
+    try:
+        action = call.data.split(':')[0]
+        parts = call.data.split(':')
+        if len(parts) < 3:
+            bot.answer_callback_query(call.id, text="Lỗi: Dữ liệu không hợp lệ")
+            return
+            
+        date = parts[1]
+        task_name = ':'.join(parts[2:])  # Ghép lại tên task nếu có dấu ':'
+        chat_id = call.message.chat.id
+        
+        if chat_id not in todos or date not in todos[chat_id]:
+            bot.answer_callback_query(call.id, text="Không tìm thấy công việc")
+            return
+
+        # Tìm và cập nhật trạng thái task
+        for task in todos[chat_id][date]:
+            if task['task'] == task_name:
+                task['completed'] = (action == 'mark_complete')
+                status_text = "hoàn thành" if action == 'mark_complete' else "chưa hoàn thành"
+                bot.answer_callback_query(call.id, text=f'Đã đánh dấu {status_text}: "{task_name}"')
+                
+                # Cập nhật tin nhắn
+                tasks_text = ''
+                for t in todos[chat_id][date]:
+                    status = "✅ " if t.get('completed', False) else "⏳ "
+                    tasks_text += f'{status}{t["task"]} (Từ {t["start_time"]} đến {t["end_time"]})\n'
+                
+                text = f'Công việc ngày {date}:\n{tasks_text}'
+                
+                # Tạo keyboard mới
+                keyboard = types.InlineKeyboardMarkup(row_width=2)
+                for t in todos[chat_id][date]:
+                    # Nút đánh dấu hoàn thành/chưa hoàn thành
+                    complete_button = types.InlineKeyboardButton(
+                        text=f'❌ Chưa hoàn thành: {t["task"]}' if t.get('completed', False) else f'✅ Đánh dấu hoàn thành: {t["task"]}',
+                        callback_data=f'mark_incomplete:{date}:{t["task"]}' if t.get('completed', False) else f'mark_complete:{date}:{t["task"]}'
+                    )
+                    
+                    # Nút sửa và xóa
+                    edit_button = types.InlineKeyboardButton(
+                        text=f'✏️ Sửa: {t["task"]}',
+                        callback_data=f'edit:{date}:{t["task"]}'
+                    )
+                    delete_button = types.InlineKeyboardButton(
+                        text=f'❌ Xóa: {t["task"]}',
+                        callback_data=f'delete:{date}:{t["task"]}'
+                    )
+                    
+                    keyboard.add(complete_button)
+                    keyboard.add(edit_button, delete_button)
+                
+                # Cập nhật tin nhắn với keyboard mới
+                bot.edit_message_text(
+                    chat_id=chat_id,
+                    message_id=call.message.message_id,
+                    text=text,
+                    reply_markup=keyboard
+                )
+                return
+                
+        bot.answer_callback_query(call.id, text="Không tìm thấy công việc cần cập nhật")
+        
+    except Exception as e:
+        print(f"Lỗi khi xử lý đánh dấu hoàn thành: {str(e)}")
+        bot.answer_callback_query(call.id, text="Đã xảy ra lỗi khi cập nhật trạng thái")
+
+
 # Thêm vào cuối file, trước bot.polling()
 if __name__ == '__main__':
     start_notification_thread()
     bot.polling(none_stop=True)
-
-# Handler cho việc đánh dấu hoàn thành
-@bot.callback_query_handler(func=lambda call: call.data.startswith('mark_complete:'))
-def mark_complete_callback(call):
-    _, date, task_name = call.data.split(':')
-    chat_id = call.message.chat.id
-    
-    # Tìm và đánh dấu task hoàn thành
-    if chat_id in todos and date in todos[chat_id]:
-        for task in todos[chat_id][date]:
-            if task['task'] == task_name:
-                task['completed'] = True
-                bot.answer_callback_query(call.id, text=f'Đã đánh dấu hoàn thành: "{task_name}"')
-                
-                # Cập nhật lại danh sách
-                call(types.Message(
-                    message_id=call.message.message_id,
-                    from_user=call.from_user,
-                    date=call.message.date,
-                    chat=call.message.chat,
-                    content_type='text',
-                    text='Xem danh sách',
-                    json={}
-                ))
-                return
-
-# Handler cho việc đánh dấu chưa hoàn thành
-@bot.callback_query_handler(func=lambda call: call.data.startswith('mark_incomplete:'))
-def mark_incomplete_callback(call):
-    _, date, task_name = call.data.split(':')
-    chat_id = call.message.chat.id
-    
-    # Tìm và đánh dấu task chưa hoàn thành
-    if chat_id in todos and date in todos[chat_id]:
-        for task in todos[chat_id][date]:
-            if task['task'] == task_name:
-                task['completed'] = False
-                bot.answer_callback_query(call.id, text=f'Đã đánh dấu chưa hoàn thành: "{task_name}"')
-                
-                # Cập nhật lại danh sách
-                call(types.Message(
-                    message_id=call.message.message_id,
-                    from_user=call.from_user,
-                    date=call.message.date,
-                    chat=call.message.chat,
-                    content_type='text',
-                    text='Xem danh sách',
-                    json={}
-                ))
-                return
